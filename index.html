@@ -1,0 +1,1248 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>數學戰棋</title>
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: "Microsoft JhengHei", sans-serif;
+            background-color: #f0f2f5;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        #app {
+            width: 100%;
+            max-width: 1200px;
+            padding: 20px;
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            display: flex;
+            flex-direction: row;
+            gap: 20px;
+        }
+
+        .game-title {
+            text-align: center;
+            color: #333;
+            margin-bottom: 20px;
+            font-size: 24px;
+            width: 100%;
+        }
+
+        .game-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 20px;
+            position: relative;
+            width: 70%;
+        }
+
+        .game-board {
+            display: grid;
+            grid-template-columns: repeat(5, 60px);
+            grid-template-rows: repeat(6, 60px);
+            gap: 5px;
+            background: #f0f0f0;
+            padding: 10px;
+            border-radius: 8px;
+            position: relative;
+        }
+
+        .board-cell {
+            width: 60px;
+            height: 60px;
+            border: 1px solid #999;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            background: white;
+            cursor: pointer;
+            user-select: none;
+            position: relative;
+            transition: background-color 0.2s;
+        }
+
+        .board-cell:hover {
+            background: #e0e0e0;
+        }
+
+        .status-bar {
+            font-size: 18px;
+            margin-bottom: 10px;
+            padding: 10px;
+            background: #eee;
+            border-radius: 5px;
+            text-align: center;
+            width: 100%;
+        }
+
+        .selected {
+            background: #ffeb3b !important;
+        }
+
+        .moveable {
+            background: #4CAF50 !important;
+            color: white;
+        }
+
+        .attackable {
+            background: #f44336 !important;
+            color: white;
+        }
+
+        .problem-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 3000;
+        }
+
+        .problem-content {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+            width: 80%;
+            max-width: 500px;
+        }
+
+        .question {
+            font-size: 24px;
+            margin: 20px 0;
+        }
+
+        .options {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+        }
+
+        .option-btn {
+            padding: 10px 20px;
+            font-size: 18px;
+            border: none;
+            border-radius: 5px;
+            background: #2196f3;
+            color: white;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .option-btn:hover {
+            background: #1976d2;
+        }
+
+        .level-select {
+            padding: 20px;
+            text-align: center;
+            width: 100%;
+        }
+
+        .level-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-top: 20px;
+        }
+
+        .level-card {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+
+        .level-card:hover {
+            transform: translateY(-5px);
+        }
+
+        .level-card.locked {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .level-card.current {
+            border: 2px solid #2196f3;
+        }
+
+        .menu-btn {
+            margin-top: 20px;
+            padding: 10px 20px;
+            font-size: 16px;
+            background: #2196f3;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .menu-btn:hover {
+            background: #1976d2;
+        }
+
+        /* 血量條樣式 */
+        .health-bar {
+            width: 100%;
+            height: 4px;
+            background: #e0e0e0;
+            margin-top: 2px;
+        }
+
+        .health-bar-fill {
+            height: 100%;
+            background: #76ff03;
+            transition: width 0.3s;
+        }
+
+        /* 特效樣式 */
+        .special-effect {
+            position: absolute;
+            font-size: 24px;
+            pointer-events: none;
+        }
+
+        /* 魔法選單樣式 */
+        .magic-menu {
+            margin-top: 10px;
+        }
+
+        .magic-btn {
+            margin: 5px;
+            padding: 10px 15px;
+            font-size: 16px;
+            border: none;
+            border-radius: 5px;
+            background: #ff9800;
+            color: white;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .magic-btn:hover {
+            background: #fb8c00;
+        }
+
+        /* 遊戲結束樣式 */
+        .game-over {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: #fff3cd;
+            padding: 20px;
+            border: 2px solid #ffeeba;
+            border-radius: 10px;
+            text-align: center;
+            z-index: 4000;
+        }
+    </style>
+</head>
+<body>
+    <div id="app">
+        <div class="game-container">
+            <h1 class="game-title">數學戰棋</h1>
+
+            <!-- 說明面板 -->
+            <div class="instructions">
+                <h3>遊戲說明</h3>
+                <p>1. 遊戲開始前請選擇一個關卡。</p>
+                <p>2. 點擊角色顯示可移動的綠色格子，移動到目標位置。</p>
+                <p>3. 當角色移動到有怪物的格子時，將觸發數學題目，答對即可攻擊怪物。</p>
+                <p>4. 答錯則失去生命值，生命值歸零則遊戲結束。</p>
+                <p>5. 累積經驗值後，角色可以升級：</p>
+                <ul>
+                    <li>小兵 (0-49經驗值)：基本攻擊</li>
+                    <li>法師學徒 (50-99經驗值)：20%機率造成暴擊(2倍傷害)</li>
+                    <li>大法師 (100經驗值以上)：30%機率暴擊、每次攻擊恢復10點生命值</li>
+                </ul>
+
+                <!-- 魔法選單 -->
+                <div class="magic-menu">
+                    <button class="magic-btn" @click="castSpell('heal')">治療</button>
+                    <button class="magic-btn" @click="castSpell('fireball')">火球術</button>
+                    <button class="magic-btn" @click="castSpell('lightning')">閃電術</button>
+                </div>
+            </div>
+
+            <!-- 關卡選擇畫面 -->
+            <div v-if="gameState.showLevelSelect">
+                <h2>選擇關卡</h2>
+                <div class="level-grid">
+                    <div v-for="level in levels" 
+                         :key="level.id"
+                         class="level-card"
+                         :class="{
+                             'locked': !gameState.unlockedLevels.includes(level.id),
+                             'current': gameState.currentLevel === level.id
+                         }"
+                         @click="handleLevelSelect(level.id)"
+                         :disabled="!gameState.unlockedLevels.includes(level.id)">
+                        <h3>{{ level.name }}</h3>
+                        <p>難度：{{ level.difficulty }}</p>
+                        <p v-if="level.requiredScore > 0">
+                            需要 {{ level.requiredScore }} 分解鎖
+                        </p>
+                    </div>
+                </div>
+                <div class="character-info">
+                    <h3>角色狀態</h3>
+                    <p>等級：{{ characterState.level }}</p>
+                    <p>經驗值：{{ characterState.exp }}/100</p>
+                    <p>職業：{{ characters[characterState.type].name }}</p>
+                    <p>金幣：{{ playerState.gold }}</p>
+                    <p>道具：{{ playerState.items.join(', ') || '無' }}</p>
+                </div>
+            </div>
+
+            <!-- 遊戲進行畫面 -->
+            <div v-else>
+                <div class="status-bar">
+                    HP: {{ playerState.hp }} | 分數: {{ playerState.score }} | 金幣: {{ playerState.gold }}
+                    <div class="timer" v-if="timerActive">倒計時：{{ timer }}</div>
+                </div>
+                <div v-if="gameState.isGameOver" class="game-over">
+                    {{ gameState.message }}
+                    <button @click="initLevel(gameState.currentLevel)" class="menu-btn">
+                        重新挑戰
+                    </button>
+                </div>
+                <div class="game-board">
+                    <div v-for="(row, rowIndex) in gameBoard" 
+                         :key="rowIndex" 
+                         class="board-row">
+                        <div v-for="(cell, colIndex) in row" 
+                             :key="colIndex"
+                             class="board-cell"
+                             :class="{
+                                 'selected': selectedPosition && selectedPosition[0] === rowIndex && selectedPosition[1] === colIndex,
+                                 'moveable': moveablePositions.some(([r, c]) => r === rowIndex && c === colIndex),
+                                 'attackable': attackablePositions.some(([r, c]) => r === rowIndex && c === colIndex)
+                             }"
+                             @click="handleCellClick(rowIndex, colIndex)">
+                            <div class="cell-content">
+                                {{ cell }}
+                                <div v-if="isMonster(cell)" class="health-bar">
+                                    <div class="health-bar-fill" 
+                                         :style="{ width: (monsters[cell].hp / monsters[cell].maxHp) * 100 + '%' }">
+                                    </div>
+                                </div>
+                                <div v-if="isNPCCell(cell)" class="health-bar">
+                                    <div class="health-bar-fill" style="background: #4CAF50;"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <button @click="gameState.showLevelSelect = true" class="menu-btn">
+                    返回選單
+                </button>
+            </div>
+
+            <!-- 問題彈窗 -->
+            <div v-if="showProblem" class="problem-modal">
+                <div class="problem-content">
+                    <h3>解答下列題目：</h3>
+                    <p class="question">{{ currentProblem.question }}</p>
+                    <div class="options">
+                        <button 
+                            v-for="option in currentProblem.options" 
+                            :key="option"
+                            @click="handleAnswer(option, $event)"
+                            class="option-btn">
+                            {{ option }}
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 角色信息 -->
+            <div class="character-info">
+                <h3>角色狀態</h3>
+                <p>等級：{{ characterState.level }}</p>
+                <p>經驗值：{{ characterState.exp }}/100</p>
+                <p>職業：{{ characters[characterState.type].name }}</p>
+                <p>金幣：{{ playerState.gold }}</p>
+                <p>道具：{{ playerState.items.join(', ') || '無' }}</p>
+            </div>
+
+            <!-- 特效顯示 -->
+            <div v-for="effect in effectSystem.effects" 
+                 :key="effect.id"
+                 class="special-effect"
+                 :style="effect.style">
+                {{ effect.text }}
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const app = Vue.createApp({
+            setup() {
+                const { ref, reactive, computed } = Vue;
+
+                // 關卡設定
+                const LEVELS = [
+                    {
+                        id: 1,
+                        name: '初學者的試煉',
+                        map: [
+                            ['👶', '⬜', '👾', '⬜', '👾'],
+                            ['⬜', '👾', '⬜', '⬜', '⬜'],
+                            ['⬜', '⬜', '⬜', '⬜', '⬜'],
+                            ['⬜', '👾', '⬜', '👾', '⬜'],
+                            ['👾', '⬜', '⬜', '⬜', '🏁']
+                        ],
+                        difficulty: 'easy',
+                        requiredScore: 0,
+                        mission: '打敗2隻👾'
+                    },
+                    {
+                        id: 2,
+                        name: '進階挑戰',
+                        map: [
+                            ['👶', '⬜', '👾', '⬜', '👾', '⬜', '👾'],
+                            ['👾', '⬜', '⬜', '👾', '⬜', '👾', '⬜'],
+                            ['⬜', '👾', '⬜', '⬜', '👾', '👾', '⬜'],
+                            ['⬜', '⬜', '👾', '⬜', '👾', '👾', ''],
+                            ['👾', '⬜', '⬜', '👾', '⬜', '⬜', '⬜'],
+                            ['⬜', '👾', '⬜', '⬜', '👾', '⬜', '🏁']
+                        ],
+                        difficulty: 'medium',
+                        requiredScore: 100,
+                        mission: '解救1名村民'
+                    },
+                    {
+                        id: 3,
+                        name: '大師級考驗',
+                        map: [
+                            ['🧙', '👾', '⬜', '👾', '⬜', '👾', '⬜', '👾'],
+                            ['⬜', '⬜', '👾', '⬜', '👾', '⬜', '👾', '⬜'],
+                            ['👾', '⬜', '⬜', '👾', '⬜', '👾', '⬜', '👾'],
+                            ['⬜', '👾', '⬜', '⬜', '👾', '👾', '🏁', '👾'],
+                            ['👾', '⬜', '👾', '⬜', '👾', '⬜', '👾', '👾'],
+                            ['⬜', '👾', '⬜', '⬜', '👾', '⬜', '👾', '🏁']
+                        ],
+                        difficulty: 'hard',
+                        requiredScore: 300,
+                        mission: '打敗5隻👾並解救2名村民'
+                    }
+                ];
+
+                // 遊戲面板
+                const gameBoard = ref([]);
+
+                // 當前選中的位置
+                const selectedPosition = ref(null);
+
+                // 當前問題
+                const currentProblem = ref(null);
+
+                // 是否顯示問題
+                const showProblem = ref(false);
+
+                // 當前怪物
+                const currentMonster = ref(null);
+
+                // 怪物資料
+                const monsters = reactive({
+                    '👾': { name: '哥布林', hp: 30, maxHp: 30, damage: 10, type: 'goblin', exp: 10 },
+                    '🐉': { name: '龍', hp: 50, maxHp: 50, damage: 20, type: 'dragon', exp: 20 }
+                });
+
+                // NPC料
+                const npcs = reactive([
+                    { name: '村民A', position: [2, 2], isRescued: false },
+                ]);
+
+                // 角色資料
+                const characters = reactive({
+                    '👶': { name: '小兵', moveRange: 1, hp: 80, exp: 0 },
+                    '🧙‍♂️': { name: '法師學徒', moveRange: 1, hp: 100, exp: 50 },
+                    '🧙': { name: '大法師', moveRange: 1, hp: 120, exp: 100 }
+                });
+
+                // 玩家角色狀態
+                const characterState = reactive({
+                    type: '👶',
+                    exp: 0,
+                    level: 1
+                });
+
+                // 玩家狀態
+                const playerState = reactive({
+                    hp: characters['👶'].hp,
+                    score: 0,
+                    gold: 0,
+                    items: []
+                });
+
+                // 遊戲狀態
+                const gameState = reactive({
+                    currentLevel: 1,
+                    isGameOver: false,
+                    isWin: false,
+                    message: '',
+                    showLevelSelect: true,
+                    unlockedLevels: [1],
+                    totalScore: 0,
+                    missionCompleted: false
+                });
+
+                // 任務狀態
+                const missionState = reactive({
+                    currentMission: '',
+                    objectives: 0,
+                    target: '',
+                    isCompleted: false,
+                    requiredCount: 0
+                });
+
+                // 方法：初始化任務
+                const initializeMission = () => {
+                    const level = LEVELS.find(l => l.id === gameState.currentLevel);
+                    if (!level) return;
+                    
+                    missionState.currentMission = level.mission;
+                    missionState.objectives = 0;
+                    missionState.isCompleted = false;
+                    missionState.target = level.mission.includes('打敗') ? '👾' : '村民';
+                    
+                    // 從任務描述中提取所需數量
+                    const matches = level.mission.match(/\d+/);
+                    missionState.requiredCount = matches ? parseInt(matches[0]) : 1;
+                };
+
+                // 計時元素
+                const timer = ref(30);
+                const timerActive = ref(false);
+                let timerInterval = null;
+
+                // 可移動位置計算
+                const moveablePositions = computed(() => {
+                    if (!selectedPosition.value) return [];
+                    const [row, col] = selectedPosition.value;
+                    const positions = [];
+                    const range = characters[characterState.type].moveRange;
+                    
+                    // 檢查上下左右及對角線方向
+                    const directions = [
+                        [-1, 0], [1, 0], [0, -1], [0, 1],
+                        [-1, -1], [-1, 1], [1, -1], [1, 1]
+                    ];
+                    for (const [dx, dy] of directions) {
+                        for (let i = 1; i <= range; i++) {
+                            const newRow = row + dx * i;
+                            const newCol = col + dy * i;
+                            if (newRow >= 0 && newRow < gameBoard.value.length && 
+                                newCol >= 0 && newCol < gameBoard.value[0].length) {
+                                if (gameBoard.value[newRow][newCol] === '⬜' || 
+                                    gameBoard.value[newRow][newCol] === '🏁') {
+                                    positions.push([newRow, newCol]);
+                                } else {
+                                    break; // 遇到障礙物停止延伸
+                                }
+                            }
+                        }
+                    }
+                    return positions;
+                });
+
+                // 可攻擊位置計算
+                const attackablePositions = computed(() => {
+                    if (!selectedPosition.value) return [];
+                    const [row, col] = selectedPosition.value;
+                    const positions = [];
+                    
+                    // 檢查上下左右四個方向
+                    const directions = [[-1, 0], [1, 0], [0, -1], [0, 1]];
+                    for (const [dx, dy] of directions) {
+                        const newRow = row + dx;
+                        const newCol = col + dy;
+                        if (newRow >= 0 && newRow < gameBoard.value.length && 
+                            newCol >= 0 && newCol < gameBoard.value[0].length) {
+                            if (['👾', '🐉'].includes(gameBoard.value[newRow][newCol])) {
+                                positions.push([newRow, newCol]);
+                            }
+                        }
+                    }
+                    return positions;
+                });
+
+                // 方法：生成數學問題
+                const generateProblem = () => {
+                    const types = [
+                        // 百分比計算（修正為5的倍數）
+                        {
+                            generate: () => {
+                                const original = (Math.floor(Math.random() * 18) + 2) * 50; // 100到900，以50為步進
+                                const discount = (Math.floor(Math.random() * 3) + 7) * 5; // 35, 40, 45折
+                                const finalPrice = Math.floor(original * discount / 100);
+                                return {
+                                    question: `某商品原價 ${original} 元，打 ${discount} 折，售價是多少元？`,
+                                    answer: finalPrice,
+                                    options: [
+                                        finalPrice,
+                                        Math.floor(original * (discount - 5) / 100),
+                                        Math.floor(original * (discount + 5) / 100),
+                                        Math.floor(original * discount / 80)
+                                    ].sort(() => Math.random() - 0.5)
+                                };
+                            }
+                        },
+                        // 幾何題目 - 三角形
+                        {
+                            generate: () => {
+                                const angles = [30, 45, 60, 90];
+                                const angle1 = angles[Math.floor(Math.random() * angles.length)];
+                                const angle2 = angles[Math.floor(Math.random() * angles.length)];
+                                const angle3 = 180 - angle1 - angle2;
+                                if (angle3 <= 0) return this.generate(); // 重新生成
+                                
+                                return {
+                                    question: `在三角形ABC中，$\angle A = ${angle1}°$，$\angle B = ${angle2}°$，求$\angle C = ?$`,
+                                    answer: angle3,
+                                    options: [
+                                        angle3,
+                                        180 - angle3,
+                                        angle1 + angle2,
+                                        90
+                                    ].sort(() => Math.random() - 0.5)
+                                };
+                            }
+                        },
+                        // 幾何題目 - 平行線
+                        {
+                            generate: () => {
+                                const baseAngle = Math.floor(Math.random() * 12) * 5 + 30; // 30到85度，步進5
+                                return {
+                                    question: `兩條平行線被一條直線相交，如果其中一個同位角為 ${baseAngle}°，則另一個對應的同位角為多少度？`,
+                                    answer: baseAngle,
+                                    options: [
+                                        baseAngle,
+                                        180 - baseAngle,
+                                        90,
+                                        baseAngle + 90
+                                    ].sort(() => Math.random() - 0.5)
+                                };
+                            }
+                        },
+                        // 方程式（改進版）
+                        {
+                            generate: () => {
+                                const x = Math.floor(Math.random() * 10) + 1;
+                                const a = Math.floor(Math.random() * 5) + 1;
+                                const b = Math.floor(Math.random() * 20) + 1;
+                                const side = Math.random() < 0.5 ? 'left' : 'right';
+                                const equation = side === 'left' 
+                                    ? `${a}x + ${b} = ${a * x + b}`
+                                    : `${a * x + b} = ${a}x + ${b}`;
+                                return {
+                                    question: `解方程式：${equation}`,
+                                    answer: x,
+                                    options: [x, x + 1, x - 1, x + 2].sort(() => Math.random() - 0.5)
+                                };
+                            }
+                        },
+                        // 多項式因式分解
+                        {
+                            generate: () => {
+                                const expressions = [
+                                    { question: '將以下多項式因式分解：$2x + 6$', answer: '2(x + 3)', options: ['2(x + 3)', '2x + 3', 'x + 6', '2x + 6'] },
+                                    { question: '將以下多項式因式分解：$x^2 - 16$', answer: '(x - 4)(x + 4)', options: ['(x - 4)(x + 4)', 'x^2 - 4', '(x - 2)(x + 8)', '(x - 8)(x + 2)'] }
+                                ];
+                                const expr = expressions[Math.floor(Math.random() * expressions.length)];
+                                return {
+                                    question: expr.question,
+                                    answer: expr.answer,
+                                    options: expr.options.sort(() => Math.random() - 0.5)
+                                };
+                            }
+                        }
+                    ];
+
+                    const type = types[Math.floor(Math.random() * types.length)];
+                    return type.generate();
+                };
+                // 方法：回答問題
+                let handleAnswer = (selectedOption, event) => {
+   
+                     clearInterval(timerInterval);
+                    timerActive.value = false;
+                    showProblem.value = false;
+
+                    if (selectedOption === currentProblem.value.answer) {
+                        // 答對
+                        if (missionState.target === '👾') {
+                            const monsterPosition = findMonsterPosition();
+                            if (monsterPosition) {
+                                const [row, col] = monsterPosition;
+                                gameBoard.value[row][col] = '⬜';
+                                playerState.exp += monsters['👾'].exp;
+                                playerState.score += 10;
+                                alert('答對了！擊敗了怪物！');
+                                checkMissionCompletion();
+                                checkLevelUp();
+                                checkAndUnlockLevels(playerState.score);
+                            }
+                        } else if (missionState.target === '村民') {
+                            const npc = findRescueNPC();
+                            if (npc) {
+                                rescueNPC(npc);
+                            }
+                        }
+                    } else {
+                        // 答錯
+                        playerState.hp -= 10;
+                        alert('答錯了！失去10點生命值！');
+                        if (playerState.hp <= 0) {
+                            gameState.isGameOver = true;
+                            gameState.isWin = false;
+                            gameState.message = '遊戲結束！生命值歸零！';
+                        }
+                    }
+
+                    // 開始敵人回合
+                    if (!gameState.isGameOver) {
+                        enemyTurn();
+                    }
+                };
+
+                // 方法：初始化關卡
+                const initLevel = (levelId) => {
+                    const level = LEVELS.find(l => l.id === levelId);
+                    if (!level) return;
+                    gameState.currentLevel = levelId;
+                    gameState.isGameOver = false;
+                    gameState.message = '';
+                    gameState.showLevelSelect = false;
+                    missionState.isCompleted = false;
+                    characterState.exp = 0;
+                    playerState.hp = characters[characterState.type].hp;
+                    playerState.score = 0;
+                    playerState.gold = 0;
+                    playerState.items = [];
+                    gameBoard.value = JSON.parse(JSON.stringify(level.map));
+                    monsters['👾'].hp = 30;
+                    monsters['🐉'].hp = 50;
+                    npcs.forEach(npc => { npc.isRescued = false; });
+                    initializeMission();
+                };
+
+                // 方法：選擇關卡
+                const handleLevelSelect = (levelId) => {
+                    if (!gameState.unlockedLevels.includes(levelId)) return;
+                    initLevel(levelId);
+                };
+
+                // 方法：處理格子點擊
+                const handleCellClick = (row, col) => {
+                    if (gameState.isGameOver || showProblem.value) return;
+                    
+                    const cell = gameBoard.value[row][col];
+                    
+                    // 選擇角色
+                    if (['👶', '🧙‍♂️', '🧙'].includes(cell)) {
+                        selectedPosition.value = [row, col];
+                        return;
+                    }
+
+                    // 移動
+                    if (moveablePositions.value.some(pos => pos[0] === row && pos[1] === col)) {
+                        // 移動角色
+                        moveCharacter(selectedPosition.value, [row, col]);
+                        selectedPosition.value = null;
+                        return;
+                    }
+
+                    // 攻擊
+                    if (attackablePositions.value.some(pos => pos[0] === row && pos[1] === col)) {
+                        // 選擇怪物攻擊
+                        selectedPosition.value = [row, col];
+                        const problem = generateProblem();
+                        currentProblem.value = problem;
+                        showProblem.value = true;
+                        timerActive.value = true;
+                        startTimer();
+                        return;
+                    }
+
+                    // 拯救NPC
+                    if (isNPCCell(cell)) {
+                        const npc = npcs.find(n => n.position[0] === row && n.position[1] === col && !n.isRescued);
+                        if (npc) {
+                            rescueNPC(npc);
+                        }
+                        return;
+                    }
+                };
+
+                // 方法：移動角色
+                const moveCharacter = (from, to) => {
+                    const [fromRow, fromCol] = from;
+                    const [toRow, toCol] = to;
+                    const character = gameBoard.value[fromRow][fromCol];
+                    gameBoard.value[fromRow][fromCol] = '⬜';
+                    gameBoard.value[toRow][toCol] = character;
+                    playerState.score += 5;
+                };
+
+                // 方法：判斷是否為NPC格子
+                const isNPCCell = (cell) => {
+                    return ['🏥'].includes(cell) || npcs.some(npc => npc.position[0] === selectedPosition.value[0] && npc.position[1] === selectedPosition.value[1] && npc.isRescued);
+                };
+
+                // 方法：尋找需要拯救的NPC
+                const findRescueNPC = () => {
+                    return npcs.find(npc => !npc.isRescued && gameBoard.value[npc.position[0]][npc.position[1]] === '🧑');
+                };
+
+                // 方法：拯救NPC
+                const rescueNPC = (npc) => {
+                    npc.isRescued = true;
+                    gameBoard.value[npc.position[0]][npc.position[1]] = '🏥'; // 用醫院圖標代表已救出的NPC
+                    playerState.exp += 25;
+                    playerState.score += 25;
+                    playerState.gold += 15;
+                    alert(`成功救出 ${npc.name}！獲得25經驗值、25分數和15金幣！`);
+                    checkLevelUp();
+                    checkMissionCompletion();
+                    checkAndUnlockLevels(playerState.score);
+                };
+
+                // 方法：檢查任務完成
+                const checkMissionCompletion = () => {
+                    const level = LEVELS.find(l => l.id === gameState.currentLevel);
+                    if (!level) return;
+
+                    if (level.mission.includes('打敗')) {
+                        const defeatedMonsters = Object.values(monsters).filter(m => m.hp <= 0 && m.type === 'goblin');
+                        if (defeatedMonsters.length >= missionState.requiredCount) {
+                            completeMission();
+                        }
+                    } else if (level.mission.includes('解救')) {
+                        const rescuedNpcs = npcs.filter(npc => npc.isRescued);
+                        if (rescuedNpcs.length >= missionState.requiredCount) {
+                            completeMission();
+                        }
+                    }
+                };
+
+                // 方法：完成任務
+                const completeMission = () => {
+                    missionState.isCompleted = true;
+                    gameState.missionCompleted = true;
+                    playerState.exp += 50;
+                    playerState.gold += 30;
+                    playerState.score += 50;
+                    alert('任務完成！獲得經驗值、金幣和分數！');
+                    checkLevelUp();
+                    checkAndUnlockLevels(playerState.score);
+                };
+
+                // 方法：檢查並解鎖關卡
+                const checkAndUnlockLevels = (score) => {
+                    LEVELS.forEach(level => {
+                        if (score >= level.requiredScore && !gameState.unlockedLevels.includes(level.id)) {
+                            gameState.unlockedLevels.push(level.id);
+                            alert(`恭喜解鎖 ${level.name} 關卡！`);
+                        }
+                    });
+                };
+
+                // 方法：檢查角色是否升級
+                const checkLevelUp = () => {
+                    if (characterState.exp >= 100 && characterState.type !== '🧙') {
+                        characterState.type = '🧙';
+                        characterState.level = 3;
+                        effectSystem.addEffect('levelUp', { x: window.innerWidth / 2, y: window.innerHeight / 2 });
+                        // 播放升級音效
+                        const audio = new Audio('https://example.com/levelup.mp3'); // 請替換為實際音效URL
+                        audio.play();
+                        alert('恭喜升級為大法師！獲得新技能：範圍攻擊！');
+                    } else if (characterState.exp >= 50 && characterState.type === '👶') {
+                        characterState.type = '🧙‍♂️';
+                        characterState.level = 2;
+                        effectSystem.addEffect('levelUp', { x: window.innerWidth / 2, y: window.innerHeight / 2 });
+                        // 播放升級音效
+                        const audio = new Audio('https://example.com/levelup.mp3'); // 請替換為實際音效URL
+                        audio.play();
+                        alert('恭喜升級為法師學徒！獲得新技能：暴擊！');
+                    }
+                };
+
+                // 方法：更新遊戲板
+                const updateGameBoard = (monsterKey) => {
+                    gameBoard.value.forEach((row, rowIndex) => {
+                        row.forEach((cell, colIndex) => {
+                            if (cell === monsterKey) {
+                                gameBoard.value[rowIndex][colIndex] = '⬜';
+                            }
+                        });
+                    });
+                };
+
+                // 方法：獲取任務目標
+                const getMissionObjective = () => {
+                    return {
+                        mission: missionState.currentMission,
+                        requiredCount: missionState.requiredCount,
+                        objectives: missionState.objectives,
+                        isCompleted: missionState.isCompleted
+                    };
+                };
+
+                // 方法：尋找怪物位置
+                const findMonsterPosition = (monsterKey) => {
+                    for (let r = 0; r < gameBoard.value.length; r++) {
+                        for (let c = 0; c < gameBoard.value[r].length; c++) {
+                            if (gameBoard.value[r][c] === monsterKey) {
+                                return [r, c];
+                            }
+                        }
+                    }
+                    return null;
+                };
+
+                // 方法：開始計時
+                const startTimer = () => {
+                    timer.value = 30;
+                    timerActive.value = true;
+                    timerInterval = setInterval(() => {
+                        if (timer.value > 0) {
+                            timer.value -= 1;
+                        } else {
+                            clearInterval(timerInterval);
+                            timerActive.value = false;
+                            // 動答錯
+                            handleAnswer(null, { clientX: 0, clientY: 0 });
+                        }
+                    }, 1000);
+                };
+
+                // 方法：敵方回合
+                const enemyTurn = () => {
+                    setTimeout(() => {
+                        attackPlayer();
+                    }, 500);
+                };
+
+                // 方法：敵人攻擊玩家
+                const attackPlayer = () => {
+                    const activeMonsters = Object.values(monsters).filter(m => m.hp > 0);
+                    activeMonsters.forEach(monster => {
+                        playerState.hp -= monster.damage;
+                        alert(`${monster.name} 攻擊你，造成 ${monster.damage} 點傷害！`);
+                        effectSystem.addEffect(monster.type === 'goblin' ? 'fireball' : 'lightning', {
+                            x: Math.random() * window.innerWidth,
+                            y: Math.random() * window.innerHeight
+                        });
+                        if (playerState.hp <= 0) {
+                            gameState.isGameOver = true;
+                            gameState.isWin = false;
+                            gameState.message = '遊戲結束！生命值歸零！';
+                        }
+                    });
+                };
+
+                // 特效系統
+                const effectSystem = reactive({
+                    effects: [],
+                    addEffect(type, position) {
+                        const effect = {
+                            id: Date.now(),
+                            type,
+                            position,
+                            text: type === 'levelUp' ? '✨' : type === 'heal' ? '💚' : type === 'fireball' ? '🔥' : '⚡',
+                            style: {
+                                left: `${position.x}px`,
+                                top: `${position.y}px`,
+                                animation: type === 'levelUp' ? 'levelUpEffect 1s ease-out' :
+                                           type === 'heal' ? 'healEffect 1s ease-out' :
+                                           type === 'fireball' ? 'fireballEffect 0.5s ease-out' :
+                                           'lightningEffect 0.5s ease-out'
+                            }
+                        };
+                        effectSystem.effects.push(effect);
+                        setTimeout(() => {
+                            const index = effectSystem.effects.findIndex(e => e.id === effect.id);
+                            if (index > -1) effectSystem.effects.splice(index, 1);
+                        }, type === 'levelUp' ? 1000 : type === 'heal' ? 1000 : 500);
+                    }
+                });
+
+                // 方法：施放魔法
+                const castSpell = (spell) => {
+                    if (gameState.isGameOver) return;
+
+                    if (spell === 'heal') {
+                        if (playerState.hp < characters[characterState.type].hp && playerState.gold >= 10) {
+                            playerState.hp += 20;
+                            playerState.gold -= 10;
+                            alert('你施放了治療魔法，恢復了20點生命值！');
+                            effectSystem.addEffect('heal', { x: window.innerWidth / 2, y: window.innerHeight / 2 });
+                        } else if (playerState.hp >= characters[characterState.type].hp) {
+                            alert('你的生命值已滿！');
+                        } else {
+                            alert('金幣不足！');
+                        }
+                    } else if (spell === 'fireball') {
+                        if (playerState.gold >= 20) {
+                            playerState.gold -= 20;
+                            // 隨機選擇一個怪物
+                            const activeMonsters = Object.keys(monsters).filter(m => monsters[m].hp > 0);
+                            if (activeMonsters.length > 0) {
+                                const target = activeMonsters[Math.floor(Math.random() * activeMonsters.length)];
+                                monsters[target].hp -= 25;
+                                alert(`你使用了火球術，對 ${monsters[target].name} 造成了25點傷害！`);
+                                effectSystem.addEffect('fireball', { x: window.innerWidth / 2, y: window.innerHeight / 2 });
+                                if (monsters[target].hp <= 0) {
+                                    updateGameBoard(target);
+                                    alert(`擊敗了${monsters[target].name}！`);
+                                    playerState.exp += monsters[target].exp;
+                                    playerState.score += 10;
+                                    checkMissionCompletion();
+                                    checkLevelUp();
+                                    checkAndUnlockLevels(playerState.score);
+                                }
+                            } else {
+                                alert('沒有可攻擊的怪物！');
+                            }
+                        } else {
+                            alert('金幣不足！');
+                        }
+                    } else if (spell === 'lightning') {
+                        if (playerState.gold >= 30) {
+                            playerState.gold -= 30;
+                            // 攻擊所有怪物
+                            const activeMonsters = Object.keys(monsters).filter(m => monsters[m].hp > 0);
+                            if (activeMonsters.length > 0) {
+                                activeMonsters.forEach(m => {
+                                    monsters[m].hp -= 15;
+                                    effectSystem.addEffect('lightning', { x: Math.random() * window.innerWidth, y: Math.random() * window.innerHeight });
+                                    if (monsters[m].hp <= 0) {
+                                        updateGameBoard(m);
+                                        alert(`擊敗了${monsters[m].name}！`);
+                                        playerState.exp += monsters[m].exp;
+                                        playerState.score += 10;
+                                        checkMissionCompletion();
+                                        checkLevelUp();
+                                        checkAndUnlockLevels(playerState.score);
+                                    }
+                                });
+                                alert('你使用了閃電術，對所有怪物造成了15點傷害！');
+                            } else {
+                                alert('沒有可攻擊的怪物！');
+                            }
+                        } else {
+                            alert('金幣不足！');
+                        }
+                    }
+                };
+
+                // 返回所有需要在模板中使用的變數和方法
+                return {
+                    gameBoard,
+                    playerState,
+                    selectedPosition,
+                    moveablePositions,
+                    attackablePositions,
+                    currentProblem,
+                    showProblem,
+                    currentMonster,
+                    gameState,
+                    levels: LEVELS,
+                    initLevel,
+                    generateProblem,
+                    checkAndUnlockLevels,
+                    characterState,
+                    checkLevelUp,
+                    monsters,
+                    effectSystem,
+                    handleLevelSelect,
+                    handleCellClick,
+                    handleAnswer,
+                    isPlayerCharacter: (cell) => ['👶', '🧙‍♂️', '🧙'].includes(cell),
+                    npcs,
+                    missionState,
+                    timer,
+                    timerActive,
+                    rescueNPC,
+                    initializeMission,
+                    isMonster,
+                    castSpell,
+                    updateGameBoard,
+                    getMissionObjective,
+                    checkMissionCompletion,
+                    completeMission,
+                    characters,
+                };
+            },
+            mounted() {
+                // 初始化第一關
+                this.initLevel(1);
+                this.initializeMission();
+            },
+            template: `
+                <div class="game-container">
+                    <h1 class="game-title">數學戰棋</h1>
+
+                    <!-- 說明面板 -->
+                    <div class="instructions">
+                        <h3>遊戲說明</h3>
+                        <p>1. 遊戲開始前請選擇一個關卡。</p>
+                        <p>2. 點擊角色顯示可移動的綠色格子，移動到目標位置。</p>
+                        <p>3. 當角色移動到有怪物的格子時，將觸發數學題目，答對即可攻擊怪物。</p>
+                        <p>4. 答錯則失去生命值，生命值歸零則遊戲結束。</p>
+                        <p>5. 累積經驗值後，角色可以升級：</p>
+                        <ul>
+                            <li>小兵 (0-49經驗值)：基本攻擊</li>
+                            <li>法師學徒 (50-99經驗值)：20%機率造成暴擊(2倍傷害)</li>
+                            <li>大法師 (100經驗值以上)：30%機率暴擊、每次攻擊恢復10點生命值</li>
+                        </ul>
+
+                        <!-- 魔法選單 -->
+                        <div class="magic-menu">
+                            <button class="magic-btn" @click="castSpell('heal')">治療</button>
+                            <button class="magic-btn" @click="castSpell('fireball')">火球術</button>
+                            <button class="magic-btn" @click="castSpell('lightning')">閃電術</button>
+                        </div>
+                    </div>
+
+                    <!-- 關卡選擇畫面 -->
+                    <div v-if="gameState.showLevelSelect">
+                        <h2>選擇關卡</h2>
+                        <div class="level-grid">
+                            <div v-for="level in levels" 
+                                 :key="level.id"
+                                 class="level-card"
+                                 :class="{
+                                     'locked': !gameState.unlockedLevels.includes(level.id),
+                                     'current': gameState.currentLevel === level.id
+                                 }"
+                                 @click="handleLevelSelect(level.id)"
+                                 :disabled="!gameState.unlockedLevels.includes(level.id)">
+                                <h3>{{ level.name }}</h3>
+                                <p>難度：{{ level.difficulty }}</p>
+                                <p v-if="level.requiredScore > 0">
+                                    需要 {{ level.requiredScore }} 分解鎖
+                                </p>
+                            </div>
+                        </div>
+                        <div class="character-info">
+                            <h3>角色狀態</h3>
+                            <p>等級：{{ characterState.level }}</p>
+                            <p>經驗值：{{ characterState.exp }}/100</p>
+                            <p>職業：{{ characters[characterState.type].name }}</p>
+                            <p>金幣：{{ playerState.gold }}</p>
+                            <p>道具：{{ playerState.items.join(', ') || '無' }}</p>
+                        </div>
+                    </div>
+
+                    <!-- 遊戲進行畫面 -->
+                    <div v-else>
+                        <div class="status-bar">
+                            HP: {{ playerState.hp }} | 分數: {{ playerState.score }} | 金幣: {{ playerState.gold }}
+                            <div class="timer" v-if="timerActive">倒計時：{{ timer }}</div>
+                        </div>
+                        <div v-if="gameState.isGameOver" class="game-over">
+                            {{ gameState.message }}
+                            <button @click="initLevel(gameState.currentLevel)" class="menu-btn">
+                                重新挑戰
+                            </button>
+                        </div>
+                        <div class="game-board">
+                            <div v-for="(row, rowIndex) in gameBoard" 
+                                 :key="rowIndex" 
+                                 class="board-row">
+                                <div v-for="(cell, colIndex) in row" 
+                                     :key="colIndex"
+                                     class="board-cell"
+                                     :class="{
+                                         'selected': selectedPosition && selectedPosition[0] === rowIndex && selectedPosition[1] === colIndex,
+                                         'moveable': moveablePositions.some(([r, c]) => r === rowIndex && c === colIndex),
+                                         'attackable': attackablePositions.some(([r, c]) => r === rowIndex && c === colIndex)
+                                     }"
+                                     @click="handleCellClick(rowIndex, colIndex)">
+                                    <div class="cell-content">
+                                        {{ cell }}
+                                        <div v-if="isMonster(cell)" class="health-bar">
+                                            <div class="health-bar-fill" 
+                                                 :style="{ width: (monsters[cell].hp / monsters[cell].maxHp) * 100 + '%' }">
+                                            </div>
+                                        </div>
+                                        <div v-if="isNPCCell(cell)" class="health-bar">
+                                            <div class="health-bar-fill" style="background: #4CAF50;"></div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <button @click="gameState.showLevelSelect = true" class="menu-btn">
+                            返回選單
+                        </button>
+                    </div>
+
+                    <!-- 問題彈窗 -->
+                    <div v-if="showProblem" class="problem-modal">
+                        <div class="problem-content">
+                            <h3>解答下列題目：</h3>
+                            <p class="question">{{ currentProblem.question }}</p>
+                            <div class="options">
+                                <button 
+                                    v-for="option in currentProblem.options" 
+                                    :key="option"
+                                    @click="handleAnswer(option, $event)"
+                                    class="option-btn">
+                                    {{ option }}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 角色信息 -->
+                    <div class="character-info">
+                        <h3>角色狀態</h3>
+                        <p>等級：{{ characterState.level }}</p>
+                        <p>經驗值：{{ characterState.exp }}/100</p>
+                        <p>職業：{{ characters[characterState.type].name }}</p>
+                        <p>金幣：{{ playerState.gold }}</p>
+                        <p>道具：{{ playerState.items.join(', ') || '無' }}</p>
+                    </div>
+
+                    <!-- 特效顯示 -->
+                    <div v-for="effect in effectSystem.effects" 
+                         :key="effect.id"
+                         class="special-effect"
+                         :style="effect.style">
+                        {{ effect.text }}
+                    </div>
+                </div>
+            `,
+        }).mount('#app');
+    </script>
+</body>
+</html>
+</html>
